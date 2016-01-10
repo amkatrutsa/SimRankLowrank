@@ -1,13 +1,12 @@
-<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 # SimRankLowrank
 
 ## About
 
-This repository presents the approach to compute SimRank lowrank approximation. SimRank is a measure of similarity between graph vertices originally introduced in [[Jeh and Widom, 2002]] (http://www-cs-students.stanford.edu/~glenj/simrank.pdf). Let $S$ be a SimRank matrix such that $S_{ij}$ is a similarity between the $i$-th and the $j$-th vertices. But for large graphs storing SimRank matrix 
+This repository presents the approach to compute SimRank lowrank approximation. SimRank is a similarity measure between graph vertices originally introduced in [[Jeh and Widom, 2002]] (http://www-cs-students.stanford.edu/~glenj/simrank.pdf). But for large graphs storing SimRank for all pairs of vertices is intractable. Therefore we propose a method to store not exhaustive Simrank matrix, but only two lowrank matrices. Moreover, we provide an equation how to recover SimRank approximation from the adjacency matrix and two lowrank matrices.   
 
 ## Running
 
-To test SimRank Lowrank approximation approach, run the following commands in directory you choose:
+To test SimRankLowrank approximation approach, run the following commands in the directory you choose:
 ```
 git clone https://github.com/amkatrutsa/SimRankLowrank.git
 cd ./mcode
@@ -18,3 +17,7 @@ main
 ```
 
 After that you will have precise SimRank matrix `S` and its lowrank approximation `S_lr`.
+
+## Test graphs
+
+We carried out our experiment on the graphs from [DIMACS10 Collection](http://www.cise.ufl.edu/research/sparse/matrices/DIMACS10/index.html), which are in the directory `data`.
