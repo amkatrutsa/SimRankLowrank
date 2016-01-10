@@ -16,8 +16,8 @@ Then in MATLAB command line from the directory `mcode` run the command:
 main
 ```
 
-After that, you will have precise SimRank matrix `S`, computed by naive SimRank algorithm, and its lowrank approximation `S_lr`, computed by our method.
+After that, you will have precise SimRank matrix `S`, computed by the naive SimRank algorithm, and its lowrank approximation `S_lr`, computed by our method.
 
 ## Test graphs
 
-We carried out our experiment on the graphs from [DIMACS10 Collection](http://www.cise.ufl.edu/research/sparse/matrices/DIMACS10/index.html), which are in the directory `data`.
+We carried out our experiments on the graphs from [DIMACS10 Collection](http://www.cise.ufl.edu/research/sparse/matrices/DIMACS10/index.html), which are in the directory `data`.
