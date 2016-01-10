@@ -2,7 +2,7 @@
 
 ## About
 
-This repository presents the approach to compute SimRank lowrank approximation. SimRank is a measure of similarity between graph vertices originally introduced in [Jeh and Widom, 2002] (http://www-cs-students.stanford.edu/~glenj/simrank.pdf). 
+This repository presents the approach to compute SimRank lowrank approximation. SimRank is a measure of similarity between graph vertices originally introduced in [[Jeh and Widom, 2002]] (http://www-cs-students.stanford.edu/~glenj/simrank.pdf). Let $S$ be a SimRank matrix such that $S_{ij}$ is a similarity between the $i$-th and the $j$-th vertices. But for large graphs storing SimRank matrix 
 
 ## Running
 
