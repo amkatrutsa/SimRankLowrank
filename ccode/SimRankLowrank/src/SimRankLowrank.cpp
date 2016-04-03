@@ -79,7 +79,12 @@ bool SimRankLowrank::ReadGraph() {
 }
 
 void SimRankLowrank::ScaleAdjacencyMatrix() {
-    
+    Vec col_sum(num_vertex_, arma::fill::zeros);
+    for (SpMat::const_iterator it = scaled_adjacency_mat_.begin(); it != scaled_adjacency_mat_.end(); ++it)
+        col_sum(it.col()) += 1;
+    for (SpMat::iterator it = scaled_adjacency_mat_.begin(); it != scaled_adjacency_mat_.end(); ++it)
+        (*it) /= col_sum(it.col());
+    scaled_adjacency_mat_ *= sqrt(c_);
 }
 
 bool SimRankLowrank::compute() {
