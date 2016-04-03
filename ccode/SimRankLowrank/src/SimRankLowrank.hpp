@@ -6,6 +6,7 @@ typedef arma::sp_mat SpMat;
 typedef arma::mat Mat;
 typedef arma::vec Vec;
 
+// This class represents the SimRankLowrank approximation algorithm
 class SimRankLowrank : public SimRankBase {
     public:
         SimRankLowrank();
@@ -17,7 +18,7 @@ class SimRankLowrank : public SimRankBase {
     private:
         void compute_large();
         void compute_small();
-        bool ReadGraph();
+        virtual bool ReadGraph();
         void ScaleAdjacencyMatrix();
         void ProbabilSpectralDecomposition(Mat& U, Vec& diag_D, const SpMat& scaled_adj_matrix, 
                                            int rank, int oversample_p, const SpMat& A1, const SpMat& A2);
@@ -33,9 +34,13 @@ class SimRankLowrank : public SimRankBase {
         size_t rank_;
         size_t oversampling_;
         size_t num_iter_;
+        // Lowrank rectangular matrix
         Mat U_;
+        // Diagonal matrix
         Mat D_;
         std::string graph_filename_;
         std::string U_filename_;
         std::string D_filename_;
+        size_t num_vertex_ = 0;
+        size_t num_edges_ = 0;
 };

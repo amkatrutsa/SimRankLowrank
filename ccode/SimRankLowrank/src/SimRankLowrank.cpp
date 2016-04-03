@@ -45,6 +45,36 @@ bool SimRankLowrank::init(const Parameters& p) {
 }
 
 bool SimRankLowrank::ReadGraph() {
+    printf("Reading graph from %s...\n", graph_filename_.c_str());
+    std::ifstream graph_file(graph_filename_);
+    std::string current_line; 
+    if (!graph_file.is_open()) {
+        std::cout << "Can not open file " << graph_filename_ << std::endl; 
+        return false;
+    }
+    arma::umat loc;
+    int i = 0;
+    while(std::getline(graph_file, current_line)) {
+        if (current_line[0] == '%')
+            continue;
+        std::istringstream iss(current_line);
+        if (num_vertex_ == 0 && num_edges_ == 0) {
+            iss >> num_vertex_ >> num_vertex_ >> num_edges_;
+            loc.reshape(num_vertex_, 2);
+        }
+        else {
+            int first_vertex, second_vertex;
+            iss >> first_vertex >> second_vertex;
+            loc(i, 0) = first_vertex - 1;
+            loc(i, 1) = second_vertex - 1;
+            ++i;
+        }
+    }
+    Vec identity(num_edges_, arma::fill::ones);
+    scaled_adjacency_mat_ = SpMat(loc, identity, num_vertex_, num_vertex_);
+    scaled_adjacency_mat_ += scaled_adjacency_mat_.t();
+    graph_file.close();
+    printf("Reading graph from %s...Done\n", graph_filename_.c_str());
     return true;
 }
 
