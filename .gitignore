@@ -1,2 +1,2 @@
-./ccode/SimRankLowrank/build/
-./ccode/SimRankLowrank/nbproject/
+/ccode/SimRankLowrank/build/*
+/ccode/SimRankLowrank/nbproject/*
