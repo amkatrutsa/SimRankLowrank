@@ -16,12 +16,11 @@ class SimRankLowrank : public SimRankBase {
         bool compute();
         bool save();
     private:
-        void compute_large();
-        void compute_small();
         virtual bool ReadGraph();
         void ScaleAdjacencyMatrix();
         void ProbabilSpectralDecomposition(Mat& U, Vec& diag_D, const SpMat& scaled_adj_matrix, 
                                            int rank, int oversample_p, const SpMat& A1, const SpMat& A2);
+        bool ProbabilisticSpectralDecompositionSmall(const Mat& A);
         Vec matvec(const Vec& v, const Mat& U, const Vec& diag_D,
                         const SpMat& A1, const SpMat& A2);
         // Compute A1 * v
@@ -36,8 +35,8 @@ class SimRankLowrank : public SimRankBase {
         size_t num_iter_;
         // Lowrank rectangular matrix
         Mat U_;
-        // Diagonal matrix
-        Mat D_;
+        // Diagonal for the diagonal matrix
+        Vec d_;
         std::string graph_filename_;
         std::string U_filename_;
         std::string D_filename_;

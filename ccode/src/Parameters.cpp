@@ -5,6 +5,11 @@ Parameters::Parameters() : graph_filename(""), c(0), rank(0),
                            num_iter(0), oversampling(0), U_filename(""), D_filename("") {}
 
 bool Parameters::init(int argc, char* argv[]) {
+    if (argc < 15) {
+        printf("Current number of arguments = %d and is insufficient\n", argc);
+        exit_with_help();
+        return false;
+    }
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] != '-') {
             std::cout << "The keys have to start with -" << std::endl;

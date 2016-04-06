@@ -23,9 +23,23 @@ bool SimRankLowrank::init(const Parameters& p) {
         return false;
     }
     num_iter_ = p.num_iter;
+    graph_filename_ = p.graph_filename;
+    U_filename_ = p.U_filename;
+    D_filename_ = p.D_filename;
+    
+    if (!ReadGraph()){
+        printf("Can not read graph form %s\n", graph_filename_.c_str());
+        return false;
+    }
+    ScaleAdjacencyMatrix();
     
     if (p.oversampling < 0) {
         printf("Oversampling parameter has to be positive\n");
+        return false;
+    }
+    if (p.oversampling >= num_vertex_) {
+        printf("Oversampling parameter has to be less than the dimension of "
+                "the adjacency matrix = %zu\n", num_vertex_);
         return false;
     }
     oversampling_ = p.oversampling;
@@ -34,13 +48,12 @@ bool SimRankLowrank::init(const Parameters& p) {
         printf("Rank of approximation has to be positive\n");
         return false;
     }
-    rank_ = p.rank;
-    
-    if (!ReadGraph()){
-        printf("Can not read graph form %s\n", graph_filename_.c_str());
+    if (p.rank >= num_vertex_) {
+        printf("Rank of approximation has to be less than the dimension of "
+                "the adjacency matrix = %zu\n", num_vertex_);
         return false;
     }
-    ScaleAdjacencyMatrix();
+    rank_ = p.rank;
     return true;
 }
 
@@ -60,13 +73,13 @@ bool SimRankLowrank::ReadGraph() {
         std::istringstream iss(current_line);
         if (num_vertex_ == 0 && num_edges_ == 0) {
             iss >> num_vertex_ >> num_vertex_ >> num_edges_;
-            loc.reshape(num_vertex_, 2);
+            loc.reshape(2, num_edges_);
         }
         else {
             int first_vertex, second_vertex;
             iss >> first_vertex >> second_vertex;
-            loc(i, 0) = first_vertex - 1;
-            loc(i, 1) = second_vertex - 1;
+            loc(0, i) = first_vertex - 1;
+            loc(1, i) = second_vertex - 1;
             ++i;
         }
     }
@@ -74,6 +87,8 @@ bool SimRankLowrank::ReadGraph() {
     scaled_adjacency_mat_ = SpMat(loc, identity, num_vertex_, num_vertex_);
     scaled_adjacency_mat_ += scaled_adjacency_mat_.t();
     graph_file.close();
+    printf("Number of vertices = %zu\n", num_vertex_);
+    printf("Number of edges = %zu\n", num_edges_);
     printf("Reading graph from %s...Done\n", graph_filename_.c_str());
     return true;
 }
@@ -81,22 +96,17 @@ bool SimRankLowrank::ReadGraph() {
 void SimRankLowrank::ScaleAdjacencyMatrix() {
     Vec col_sum(num_vertex_, arma::fill::zeros);
     for (SpMat::const_iterator it = scaled_adjacency_mat_.begin(); it != scaled_adjacency_mat_.end(); ++it)
-        col_sum(it.col()) += 1;
+        col_sum(it.col()) += *it;
     for (SpMat::iterator it = scaled_adjacency_mat_.begin(); it != scaled_adjacency_mat_.end(); ++it)
         (*it) /= col_sum(it.col());
     scaled_adjacency_mat_ *= sqrt(c_);
 }
 
 bool SimRankLowrank::compute() {
-    compute_small();
-    return true;
-}
-
-void SimRankLowrank::compute_small() {
     printf("Compute low rank approximation of SimRank...\n");
     int num_vertex = scaled_adjacency_mat_.n_cols;
-    Mat U(num_vertex, rank_ + oversampling_, arma::fill::randu);
-    Vec diagonal_vec(rank_ + oversampling_, arma::fill::ones);
+    U_ = Mat(num_vertex, rank_ + oversampling_, arma::fill::randu);
+    d_ = Vec(rank_ + oversampling_, arma::fill::ones);
     // Compute diag(A1) through many matrix by vector multiplications
     SpMat A1 = scaled_adjacency_mat_.t() * scaled_adjacency_mat_.t() * 
                scaled_adjacency_mat_ * scaled_adjacency_mat_;
@@ -104,116 +114,71 @@ void SimRankLowrank::compute_small() {
     SpMat CTC = scaled_adjacency_mat_.t() * scaled_adjacency_mat_;
     // Compute diag(A2) through many matrix by vector multiplications
     Vec diagonal_CTC = CTC.diag();
-    arma::umat loc(scaled_adjacency_mat_.n_rows, 2);
-    for (size_t i = 0; i < loc.n_rows; ++i) {
-        loc(i, 0) = i;
-        loc(i, 1) = i;
+    arma::umat loc(2, scaled_adjacency_mat_.n_rows);
+    for (size_t i = 0; i < loc.n_cols; ++i) {
+        loc(0, i) = i;
+        loc(1, i) = i;
     }
     SpMat diag_CTC(loc, diagonal_CTC, scaled_adjacency_mat_.n_rows, scaled_adjacency_mat_.n_rows);
     SpMat A2 = scaled_adjacency_mat_.t() * diag_CTC * scaled_adjacency_mat_;
     for (size_t i = 0; i < num_iter_; ++i) {
         std::cout << "Iteration " << i + 1 << std::endl;
-        Mat A3 = scaled_adjacency_mat_.t() * U * arma::diagmat(diagonal_vec) * U.t() * scaled_adjacency_mat_;
+        printf("UT * W...\n");
+        Mat UtW = U_.t() * scaled_adjacency_mat_;
+        printf("UT * W...Done\n");
+        printf("UWT * D * UTW...\n");
+        Mat A3 = UtW.t() * arma::diagmat(d_) * UtW;
+        printf("UWT * D * UTW...Done\n");
         Vec diag_A4 = Vec(A1.diag()) - Vec(A2.diag()) + Vec(A3.diag());
         Mat A = Mat(A1) - Mat(A2) + A3; 
         A -= arma::diagmat(diag_A4);
-        Mat V;
-        arma::svd_econ(U, diagonal_vec, V, A);
+        printf("SVD...\n");
+        if (!ProbabilisticSpectralDecompositionSmall(A)) {
+            printf("Error in probabilistic spectral decomposition\n");
+            return false;
+        }
+        printf("SVD...Done\n");
     }
-//    Vec identity_vec(num_vertex, arma::fill::ones);
-//    SpMat scaled_adj_mat_product = scaled_adjacency_mat_.t() * scaled_adjacency_mat_;
-//    simrank_ = Mat(scaled_adj_mat_product);
-//    simrank_.diag() = identity_vec;
-//    simrank_ += U * arma::diagmat(diagonal_vec) * U.t();
     printf("Compute low rank approximation of SimRank... Done\n");
-}
-
-bool SimRankLowrank::save() {
     return true;
 }
 
-//void SimRankLowrank::compute_large() {
-//    printf("Compute low rank approximation of SimRank...\n");
-//    int num_vertex = scaled_adjacency_mat_.cols();
-//    MatrixXd U = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::Random(num_vertex, rank_ + oversampling_p_);
-//    VectorXd diagonal_vec(rank_ + oversampling_p_);
-//    for (int i = 0; i < rank_ + oversampling_p_; ++i)
-//        diagonal_vec(i) = 1;
-//    // Compute diag(A1) through many matrix by vector multiplications
-//    SpMat A1 = scaled_adjacency_mat_.transpose() * scaled_adjacency_mat_.transpose() * 
-//               scaled_adjacency_mat_ * scaled_adjacency_mat_;
-//    VectorXd diagonal_A1 = A1.diagonal();
-//    // Compute diagonal of CTC
-//    SpMat CTC = scaled_adjacency_mat_.transpose() * scaled_adjacency_mat_;
-//    // Compute diag(A2) through many matrix by vector multiplications
-//    VectorXd diagonal_CTC = CTC.diagonal();
-//    SpMat diag_CTC(num_vertex, num_vertex);
-//    std::vector<T> triplet_list;
-//    triplet_list.reserve(num_vertex);
-//    for (int i = 0; i < num_vertex; ++i)
-//        triplet_list.push_back(T(i, i, diagonal_CTC(i)));
-//    diag_CTC.setFromTriplets(triplet_list.begin(), triplet_list.end());
-//    SpMat A2 = scaled_adjacency_mat_.transpose() * diag_CTC * scaled_adjacency_mat_;
-//    for (int i = 0; i < num_iter_; ++i) {
-//        std::cout << "Iteration " << i + 1 << std::endl;
-////        std::cout << "Number o vertex " << num_vertex <<std::endl;
-////        std::cout << "Dimension of matrix U = " << U.rows() << " " << U.cols() << std::endl;
-////        std::cout << "Dimension of D = " << diagonal_vec.rows() << std::endl;
-//        ProbabilSpectralDecomposition(U, diagonal_vec, scaled_adjacency_mat_, rank_, oversampling_p_, A1, A2);
-//    }
-//    VectorXd identity_vec(num_vertex);
-//    for (int i = 0; i < num_vertex; ++i)
-//        identity_vec(i) = 1;
-//    SpMat scaled_adj_mat_product = scaled_adjacency_mat_.transpose() * scaled_adjacency_mat_;
-//    simrank_ = MatrixXd(scaled_adj_mat_product);
-//    simrank_.diagonal() = identity_vec;
-//    simrank_ += U * diagonal_vec.asDiagonal() * U.transpose();
-//    printf("Compute low rank approximation of SimRank... Done\n");
-//}
-//
-//void SimRankLowrank::ProbabilSpectralDecomposition(MatrixXd& U, VectorXd& diag_D, const SpMat& scaled_adj_matrix, 
-//                                                   int rank, int oversample_par, const SpMat& A1, 
-//                                                   const SpMat& A2) {
-//    // Generate matrix with elements from standard normal distribution
-//    int num_vertex = scaled_adj_matrix.cols();
-//    MatrixXd Z(num_vertex, rank + oversample_par);
-//    std::random_device rd;
-//    std::mt19937 generator(rd());
-//    std::normal_distribution<> distribution(0.0, 1.0);
-//    for (int i = 0; i < num_vertex; ++i) {
-//        for (int j = 0; j < rank + oversample_par; ++j)
-//            Z(i, j) = distribution(generator);
-//    }
-//    
-////    SpMat CTC = scaled_adj_matrix.transpose() * scaled_adj_matrix;
-////    SpMat A1 = scaled_adj_matrix.transpose() * CTC * scaled_adj_matrix;
-////    MatrixXd D = MatrixXd(CTC).diagonal().asDiagonal();
-////    MatrixXd A2 = scaled_adj_matrix.transpose() * D * scaled_adj_matrix;
-////    MatrixXd A3 = scaled_adj_matrix.transpose() * U * diag_D.asDiagonal() * U.transpose() * scaled_adj_matrix;
-////    MatrixXd A4 = (MatrixXd(A1) - A2 + A3).diagonal().asDiagonal();
-//    // Form matrix Y = MZ
-//    MatrixXd Y(num_vertex, rank + oversample_par);
-////    MatrixXd M = MatrixXd(A1) - A2 + A3 - A4;
-//    for (int i = 0; i < rank + oversample_par; ++i)
-//        Y.col(i) = matvec(Z.col(i), U, diag_D, A1, A2);
-//    
-//    Eigen::JacobiSVD<MatrixXd> svd(Y, Eigen::ComputeThinU);
-//    MatrixXd U_Y = svd.matrixU();
-//    int rank_Y = rank + oversample_par; // FIXIT!
-//    MatrixXd Q(num_vertex, rank_Y);
-//    for (int i = 0; i < rank_Y; ++i)
-//        Q.col(i) = U_Y.col(i);
-//    
-//    MatrixXd MQ(num_vertex, rank_Y);
-//    for (int i = 0; i < rank_Y; ++i)
-//        MQ.col(i) = matvec(Q.col(i), U, diag_D, A1, A2);
-//    
-//    MatrixXd B = Q.transpose() * MQ;
-//    Eigen::JacobiSVD<MatrixXd> svd2(B, Eigen::ComputeThinU);
-//    U = Q * svd2.matrixU();
-//    diag_D = svd2.singularValues();
-//}
-//
+bool SimRankLowrank::save() {
+    printf("Saving lowrank matrices...\n");
+    if (!U_.save(U_filename_, arma::csv_ascii)) {
+        printf("Can not save U matrix in %s\n", U_filename_.c_str());
+        return false;
+    }
+    if (!d_.save(D_filename_, arma::csv_ascii)) {
+        printf("Can not save D matrix in %s\n", D_filename_.c_str());
+        return false;
+    }
+    printf("Saving lowrank matrices...Done\n");
+    return true;
+}
+
+
+bool SimRankLowrank::ProbabilisticSpectralDecompositionSmall(const Mat& A) {
+    // Generate matrix with elements from standard normal distribution
+    int n = A.n_rows;
+    Mat Z(n, rank_ + oversampling_, arma::fill::randn);
+    Mat Y = A * Z;
+    Mat Q, V;
+    Vec d; 
+    if (!arma::svd_econ(Q, d, V, Y)) {
+        printf("Error in SVD\n");
+        return false;
+    }
+    Mat B = Q.t() * (A * Q);
+    Mat U1;
+    if (!arma::svd_econ(U1, d_, V, B)) {
+        printf("Error in SVD\n");
+        return false;
+    }
+    U_ = Q * U1;
+    return true;
+}
+
 //VectorXd SimRankLowrank::matvec(const VectorXd& v, const MatrixXd& U, const VectorXd& diag_D,
 //                                const SpMat& A1, const SpMat& A2) {
 //    int vector_dim = scaled_adjacency_mat_.rows();
