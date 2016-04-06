@@ -104,12 +104,11 @@ void SimRankLowrank::ScaleAdjacencyMatrix() {
 
 bool SimRankLowrank::compute() {
     printf("Compute low rank approximation of SimRank...\n");
-    int num_vertex = scaled_adjacency_mat_.n_cols;
-    U_ = Mat(num_vertex, rank_ + oversampling_, arma::fill::randu);
+    U_ = Mat(num_vertex_, rank_ + oversampling_, arma::fill::randu);
     d_ = Vec(rank_ + oversampling_, arma::fill::ones);
     // Compute diag(A1) through many matrix by vector multiplications
-    SpMat A1 = scaled_adjacency_mat_.t() * scaled_adjacency_mat_.t() * 
-               scaled_adjacency_mat_ * scaled_adjacency_mat_;
+    SpMat C_sq = scaled_adjacency_mat_ * scaled_adjacency_mat_;
+    SpMat A1 = C_sq.t() * C_sq;
     // Compute diagonal of CTC
     SpMat CTC = scaled_adjacency_mat_.t() * scaled_adjacency_mat_;
     // Compute diag(A2) through many matrix by vector multiplications
@@ -119,19 +118,15 @@ bool SimRankLowrank::compute() {
         loc(0, i) = i;
         loc(1, i) = i;
     }
-    SpMat diag_CTC(loc, diagonal_CTC, scaled_adjacency_mat_.n_rows, scaled_adjacency_mat_.n_rows);
+    SpMat diag_CTC(loc, diagonal_CTC, num_vertex_, num_vertex_);
     SpMat A2 = scaled_adjacency_mat_.t() * diag_CTC * scaled_adjacency_mat_;
     for (size_t i = 0; i < num_iter_; ++i) {
         std::cout << "Iteration " << i + 1 << std::endl;
-        printf("UT * W...\n");
         Mat UtW = U_.t() * scaled_adjacency_mat_;
-        printf("UT * W...Done\n");
-        printf("UWT * D * UTW...\n");
         Mat A3 = UtW.t() * arma::diagmat(d_) * UtW;
-        printf("UWT * D * UTW...Done\n");
-        Vec diag_A4 = Vec(A1.diag()) - Vec(A2.diag()) + Vec(A3.diag());
+        // Vec diag_A4 = Vec(A1.diag()) - Vec(A2.diag()) + Vec(A3.diag());
         Mat A = Mat(A1) - Mat(A2) + A3; 
-        A -= arma::diagmat(diag_A4);
+        A -= arma::diagmat(A.diag());
         printf("SVD...\n");
         if (!ProbabilisticSpectralDecompositionSmall(A)) {
             printf("Error in probabilistic spectral decomposition\n");
@@ -163,18 +158,37 @@ bool SimRankLowrank::ProbabilisticSpectralDecompositionSmall(const Mat& A) {
     int n = A.n_rows;
     Mat Z(n, rank_ + oversampling_, arma::fill::randn);
     Mat Y = A * Z;
-    Mat Q, V;
-    Vec d; 
-    if (!arma::svd_econ(Q, d, V, Y)) {
-        printf("Error in SVD\n");
+//    Mat Q;
+//    printf("Orth...\n");
+//    if (!arma::orth(Q, Y)) {
+//        printf("Error in orthonormal basis generation\n");
+//        return false;
+//    }
+//    printf("Orth...Done\n");
+//    printf("Dim Q = (%d, %d)\n", Q.n_rows, Q.n_cols);
+//    Mat I = arma::eye(Q.n_cols, Q.n_cols);
+//    Mat D = I - Q.t() * Q;
+//    printf("D norm = %lf\n", arma::norm(D));
+    Mat Q, R;
+    printf("QR...\n");
+    if (!arma::qr_econ(Q, R, Y)) {
+        printf("Error in orthonormal basis generation\n");
         return false;
     }
+    printf("QR...Done\n");
+//    printf("Dim Q1 = (%d, %d)\n", Q1.n_rows, Q1.n_cols); 
+//    D = I - Q1.t() * Q1;
+//    printf("D norm = %lf\n", arma::norm(D));
+//    D = Q - Q1;
+//    printf("D norm = %lf\n", arma::norm(D));
     Mat B = Q.t() * (A * Q);
     Mat U1;
-    if (!arma::svd_econ(U1, d_, V, B)) {
-        printf("Error in SVD\n");
+    printf("Eigen decomposition...\n");
+    if (!arma::eig_sym(d_, U1, B)) {
+        printf("Error in eigen decomposition\n");
         return false;
     }
+    printf("Eigen decomposition...Done\n");
     U_ = Q * U1;
     return true;
 }

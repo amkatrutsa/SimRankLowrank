@@ -1,6 +1,8 @@
 #include "src/SimRankLowrank.hpp"
 
 int main(int argc, char* argv[]) {
+    arma::wall_clock t;
+    t.tic();
     Parameters p;
     if (!p.init(argc, argv))
         return EXIT_FAILURE;
@@ -11,5 +13,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     if (!s.save())
         return EXIT_FAILURE;
+    double time = t.toc();
+    printf("Elapsed time = %f\n", time);
     return EXIT_SUCCESS;
 }

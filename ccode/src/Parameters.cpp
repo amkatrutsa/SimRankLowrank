@@ -6,7 +6,8 @@ Parameters::Parameters() : graph_filename(""), c(0), rank(0),
 
 bool Parameters::init(int argc, char* argv[]) {
     if (argc < 15) {
-        printf("Current number of arguments = %d and is insufficient\n", argc);
+        printf("Insufficient number of arguments!\n"
+                "Current number of arguments = %d\n", argc - 1);
         exit_with_help();
         return false;
     }
