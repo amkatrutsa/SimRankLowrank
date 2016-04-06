@@ -1,2 +1,3 @@
 ccode/build/*
 nbproject/*
+.ipynb_checkpoints/*
