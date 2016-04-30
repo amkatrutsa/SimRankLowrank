@@ -4,7 +4,7 @@
 
 This repository presents the approach to compute SimRank lowrank approximation. SimRank is a similarity measure between graph vertices originally introduced in [[Jeh and Widom, 2002]] (http://www-cs-students.stanford.edu/~glenj/simrank.pdf). But for large graphs storing SimRank for all pairs of vertices is intractable. Therefore we propose a method to store not exhaustive SimRank matrix, but only two lowrank matrices. Moreover, we provide an equation how to recover SimRank approximation from the adjacency matrix and two lowrank matrices.   
 
-## Running
+## Using in MATLAB
 
 To test SimRankLowrank approximation approach, run the following commands in the directory you choose:
 ```
@@ -17,6 +17,20 @@ main
 ```
 
 After that, you will have precise SimRank matrix `S`, computed by the naive SimRank algorithm, and its lowrank approximation `S_lr`, computed by our method.
+
+## Using in C++
+
+To use our code from C++ you need to install [Armadillo](http://arma.sourceforge.net/) library.
+To test SimRankLowrank approximation approach,  run the following commands in the directory you choose:
+```
+git clone https://github.com/amkatrutsa/SimRankLowrank.git
+cd ./ccode
+mkdir build
+cd ./build
+cmake ..
+make
+```
+After that you will have te binary file ``simrank_lowrank``.
 
 ## Test graphs
 
