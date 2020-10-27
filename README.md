@@ -30,7 +30,7 @@ cd ./build
 cmake ..
 make
 ```
-After that you will have te binary file ``simrank_lowrank``.
+After that you will have the binary file ``simrank_lowrank``.
 
 ## Test graphs
 
