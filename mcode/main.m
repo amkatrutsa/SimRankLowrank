@@ -17,3 +17,4 @@ W = norm_by_col(W);
 S = simrank(W, c, k);
 % Lowrank SimRank approximation 
 S_lr = simrank_lowrank(W, c, r, p, k);
+[S_lr_implicit, U, D] = simrank_lowrank_implicit(W, c, r, p, k, 50, false);
